@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: invoice-saas-backend
+Version: 0.1.0
+Summary: FastAPI backend for the invoice extraction SaaS MVP.
+Requires-Python: >=3.12
+Requires-Dist: alembic>=1.16.0
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: httpx>=0.28.0
+Requires-Dist: openpyxl>=3.1.5
+Requires-Dist: psycopg[binary]>=3.2.0
+Requires-Dist: PyJWT>=2.10.0
+Requires-Dist: pydantic-settings>=2.8.0
+Requires-Dist: pypdf>=5.0.0
+Requires-Dist: python-multipart>=0.0.18
+Requires-Dist: redis>=5.2.0
+Requires-Dist: rq>=2.0.0
+Requires-Dist: sqlalchemy>=2.0.36
+Requires-Dist: uvicorn[standard]>=0.32.0
+Provides-Extra: test
+Requires-Dist: pytest>=8.3.0; extra == "test"
