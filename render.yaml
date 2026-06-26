@@ -40,7 +40,8 @@ services:
         value: https://invoice-saas-api.onrender.com
       - key: NEXT_PUBLIC_SUPABASE_URL
         value: https://qddypcxbqlgjsvxeytqy.supabase.co
-      - fromGroup: invoice-saas-frontend-env
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkZHlwY3hicWxnanN2eGV5dHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4ODc4NjQsImV4cCI6MjA5NzQ2Mzg2NH0.cRSXpHCs_yKlcLN98gwUqvEDd1vm2XpH9B4oPxBljcs
 
 envVarGroups:
 
@@ -65,9 +66,4 @@ envVarGroups:
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
       - key: PREVIEW_TOKEN_SECRET
-        sync: false
-
-  - name: invoice-saas-frontend-env
-    envVars:
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
         sync: false
