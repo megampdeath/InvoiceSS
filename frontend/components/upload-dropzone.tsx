@@ -3,27 +3,31 @@
 import clsx from "clsx";
 import { UploadCloud } from "lucide-react";
 import { useRef, useState } from "react";
+import type { UploadProgress } from "@/lib/api";
 
 export function UploadDropzone({
   onUpload,
   disabled
 }: {
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (file: File, onProgress: (progress: UploadProgress) => void) => Promise<void>;
   disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   async function submitFile(file?: File) {
     if (!file || busy || disabled) {
       return;
     }
     setBusy(true);
+    setProgress(1);
     try {
-      await onUpload(file);
+      await onUpload(file, (uploadProgress) => setProgress(uploadProgress.percent));
     } finally {
       setBusy(false);
+      setProgress(0);
       if (inputRef.current) {
         inputRef.current.value = "";
       }
@@ -65,7 +69,14 @@ export function UploadDropzone({
         </span>
         <span>
           <span className="block text-sm font-semibold text-ink">{busy ? "Uploading..." : "Upload invoice"}</span>
-          <span className="block text-xs text-slate-500">PDF, JPG, PNG, or TIFF up to 25 MB</span>
+          <span className="block text-xs text-slate-500">
+            {busy ? `${progress}%` : "PDF, JPG, PNG, or TIFF up to 25 MB"}
+          </span>
+          {busy && (
+            <span className="mt-2 block h-1.5 w-48 overflow-hidden rounded-full bg-slate-200">
+              <span className="block h-full bg-signal transition-all" style={{ width: `${progress}%` }} />
+            </span>
+          )}
         </span>
       </span>
     </button>

@@ -42,13 +42,14 @@ router = APIRouter(prefix="/api", tags=["invoices"])
 async def upload_invoice(
     organization_id: Annotated[str, Query()],
     file: Annotated[UploadFile, File()],
+    background_tasks: BackgroundTasks,
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> dict[str, str]:
     content = await file.read()
     invoice = create_invoice_upload(db, principal, organization_id, file, content, settings)
-    enqueue_invoice_processing(invoice.id)
+    background_tasks.add_task(enqueue_invoice_processing, invoice.id)
     return {"id": invoice.id, "status": invoice.status, "original_filename": invoice.original_filename}
 
 
@@ -135,6 +136,7 @@ def approve_invoice_route(
 @router.post("/invoices/{invoice_id}/reprocess", response_model=InvoiceOut)
 def reprocess_invoice(
     invoice_id: str,
+    background_tasks: BackgroundTasks,
     principal: Annotated[Principal, Depends(get_current_principal)],
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
@@ -145,7 +147,7 @@ def reprocess_invoice(
     db.add(ExtractionJob(invoice_id=invoice.id, status="queued", provider=settings.EXTRACTION_PROVIDER, queued_at=now_utc()))
     invoice.status = "uploaded"
     db.commit()
-    enqueue_invoice_processing(invoice.id, preserve_existing=True)
+    background_tasks.add_task(enqueue_invoice_processing, invoice.id, preserve_existing=True)
     db.refresh(invoice)
     return invoice_to_dict(invoice, settings)
 

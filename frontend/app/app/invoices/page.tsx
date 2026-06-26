@@ -1,7 +1,7 @@
 "use client";
 
 import { UploadDropzone } from "@/components/upload-dropzone";
-import { getInvoices, getMe, getStatusCounts, uploadInvoice, type Invoice, type Me } from "@/lib/api";
+import { getInvoices, getMe, getStatusCounts, uploadInvoice, type Invoice, type Me, type UploadProgress } from "@/lib/api";
 import { money, percent, shortDate } from "@/lib/formatting";
 import { Download, Search, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
@@ -9,6 +9,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StatusBadge } from "@/components/status-badge";
 
 const statuses = ["all", "uploaded", "processing", "needs_review", "approved", "failed", "archived"];
+
+type PendingUpload = {
+  id: string;
+  filename: string;
+  progress: number;
+};
 
 export default function InvoiceInboxPage() {
   const [me, setMe] = useState<Me | null>(null);
@@ -18,6 +24,7 @@ export default function InvoiceInboxPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
 
   const organizationId = me?.active_organization_id || "";
 
@@ -69,12 +76,27 @@ export default function InvoiceInboxPage() {
     [counts]
   );
 
-  async function handleUpload(file: File) {
+  async function handleUpload(file: File, onProgress: (progress: UploadProgress) => void) {
     if (!organizationId) {
       return;
     }
-    await uploadInvoice(organizationId, file);
-    await load();
+    const pendingId = crypto.randomUUID();
+    const pending = { id: pendingId, filename: file.name, progress: 1 };
+    setError(null);
+    setPendingUploads((current) => [pending, ...current]);
+    try {
+      await uploadInvoice(organizationId, file, (progress) => {
+        onProgress(progress);
+        setPendingUploads((current) =>
+          current.map((item) => (item.id === pendingId ? { ...item, progress: progress.percent } : item))
+        );
+      });
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to upload invoice.");
+    } finally {
+      setPendingUploads((current) => current.filter((item) => item.id !== pendingId));
+    }
   }
 
   return (
@@ -127,7 +149,7 @@ export default function InvoiceInboxPage() {
         {error && <div className="border-b border-line bg-rose-50 px-4 py-3 text-sm font-semibold text-berry">{error}</div>}
         {loading ? (
           <div className="p-6 text-sm text-slate-500">Loading invoices...</div>
-        ) : invoices.length === 0 ? (
+        ) : invoices.length === 0 && pendingUploads.length === 0 ? (
           <div className="p-6 text-sm text-slate-500">No invoices match the current view.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -143,6 +165,23 @@ export default function InvoiceInboxPage() {
                 </tr>
               </thead>
               <tbody>
+                {pendingUploads.map((upload) => (
+                  <tr key={upload.id} className="border-b border-line bg-teal-50/60">
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-ink">{upload.filename}</span>
+                      <div className="mt-2 h-1.5 max-w-52 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-full bg-signal transition-all" style={{ width: `${upload.progress}%` }} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">-</td>
+                    <td className="px-4 py-3 text-slate-500">-</td>
+                    <td className="px-4 py-3 text-slate-500">-</td>
+                    <td className="px-4 py-3 text-slate-500">{upload.progress}%</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={upload.progress >= 100 ? "processing" : "uploaded"} />
+                    </td>
+                  </tr>
+                ))}
                 {invoices.map((invoice) => (
                   <tr key={invoice.id} className="border-b border-line last:border-0 hover:bg-slate-50">
                     <td className="px-4 py-3">

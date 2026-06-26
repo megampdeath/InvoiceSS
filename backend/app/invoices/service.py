@@ -189,6 +189,7 @@ def create_invoice_upload(
         duplicate_of_invoice_id=duplicate.id if duplicate else None,
     )
     db.add(invoice)
+    db.flush()
     db.add(
         ExtractionJob(
             invoice_id=invoice.id,

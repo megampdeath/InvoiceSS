@@ -77,6 +77,12 @@ export type Supplier = {
   total_amount?: string | null;
 };
 
+export type UploadProgress = {
+  loaded: number;
+  total: number;
+  percent: number;
+};
+
 type FetchOptions = RequestInit & { form?: boolean };
 
 export function authToken(): string {
@@ -151,7 +157,53 @@ export async function getStatusCounts(organizationId: string) {
   return apiFetch<Record<string, number>>(`/api/invoices/status-counts?organization_id=${organizationId}`);
 }
 
-export async function uploadInvoice(organizationId: string, file: File) {
+export async function uploadInvoice(
+  organizationId: string,
+  file: File,
+  onProgress?: (progress: UploadProgress) => void
+) {
+  if (onProgress && typeof XMLHttpRequest !== "undefined") {
+    const token = await freshToken();
+    const form = new FormData();
+    form.append("file", file);
+    return new Promise<{ id: string; status: string; original_filename: string }>((resolve, reject) => {
+      const request = new XMLHttpRequest();
+      request.open("POST", `${API_BASE_URL}/api/invoices?organization_id=${encodeURIComponent(organizationId)}`);
+      request.setRequestHeader("Authorization", `Bearer ${token}`);
+      request.upload.onprogress = (event) => {
+        if (!event.lengthComputable) {
+          return;
+        }
+        onProgress({
+          loaded: event.loaded,
+          total: event.total,
+          percent: Math.min(99, Math.round((event.loaded / event.total) * 100))
+        });
+      };
+      request.onload = () => {
+        if (request.status === 401 && typeof window !== "undefined") {
+          localStorage.removeItem("invoice_saas_token");
+          window.location.href = "/login";
+          return;
+        }
+        if (request.status < 200 || request.status >= 300) {
+          let message = request.statusText || "Unable to upload invoice.";
+          try {
+            const body = JSON.parse(request.responseText);
+            message = body.detail || message;
+          } catch {
+            message = request.responseText || message;
+          }
+          reject(new Error(message));
+          return;
+        }
+        onProgress({ loaded: file.size, total: file.size, percent: 100 });
+        resolve(JSON.parse(request.responseText));
+      };
+      request.onerror = () => reject(new Error("Network error while uploading invoice."));
+      request.send(form);
+    });
+  }
   const form = new FormData();
   form.append("file", file);
   return apiFetch<{ id: string; status: string; original_filename: string }>(

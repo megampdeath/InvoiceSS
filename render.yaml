@@ -1,0 +1,108 @@
+services:
+
+  - type: redis
+    name: invoice-saas-redis
+    plan: free
+
+  - type: web
+    name: invoice-saas-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: preprod
+      - key: BACKEND_BASE_URL
+        value: https://invoice-saas-api.onrender.com
+      - key: FRONTEND_BASE_URL
+        value: https://invoice-saas-web.onrender.com
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_STORAGE_ORIGINALS_BUCKET
+        value: invoice-originals
+      - key: SUPABASE_STORAGE_EXPORTS_BUCKET
+        value: invoice-exports
+      - key: SUPABASE_STORAGE_OCR_RAW_BUCKET
+        value: ocr-raw-results
+      - key: SUPABASE_JWT_AUDIENCE
+        value: authenticated
+      - key: EXTRACTION_PROVIDER
+        value: textract
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: invoice-saas-redis
+          property: connectionString
+      - fromGroup: invoice-saas-backend-secrets
+
+  - type: worker
+    name: invoice-saas-worker
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    run: python -m app.workers.process_invoice --worker
+    envVars:
+      - key: APP_ENV
+        value: preprod
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_STORAGE_ORIGINALS_BUCKET
+        value: invoice-originals
+      - key: SUPABASE_STORAGE_EXPORTS_BUCKET
+        value: invoice-exports
+      - key: SUPABASE_STORAGE_OCR_RAW_BUCKET
+        value: ocr-raw-results
+      - key: SUPABASE_JWT_AUDIENCE
+        value: authenticated
+      - key: EXTRACTION_PROVIDER
+        value: textract
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: invoice-saas-redis
+          property: connectionString
+      - fromGroup: invoice-saas-backend-secrets
+
+  - type: web
+    name: invoice-saas-web
+    env: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    healthCheckPath: /login
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://invoice-saas-api.onrender.com
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: https://qddypcxbqlgjsvxeytqy.supabase.co
+      - fromGroup: invoice-saas-frontend-env
+
+envVarGroups:
+
+  - name: invoice-saas-backend-secrets
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        value: https://qddypcxbqlgjsvxeytqy.supabase.co
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_ISSUER
+        value: https://qddypcxbqlgjsvxeytqy.supabase.co/auth/v1
+      - key: AWS_REGION
+        value: us-east-1
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: PREVIEW_TOKEN_SECRET
+        sync: false
+
+  - name: invoice-saas-frontend-env
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        sync: false

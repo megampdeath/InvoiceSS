@@ -16,5 +16,13 @@ frontend/.next/
 .supabase/
 supabase/.temp/
 .supabase-db-password
+.supabase-app-db-password
+.supabase-*-password
+
+# Python build/cache
+__pycache__/
+*.pyc
+*.pyo
+backend/invoice_saas_backend.egg-info/
 
 node_modules/
