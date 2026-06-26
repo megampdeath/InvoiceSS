@@ -1,13 +1,9 @@
 services:
 
-  - type: keyvalue
-    name: invoice-saas-redis
-    plan: free
-    ipAllowList: []
-
   - type: web
     name: invoice-saas-api
-    env: docker
+    runtime: docker
+    plan: free
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /api/health
@@ -30,43 +26,12 @@ services:
         value: authenticated
       - key: EXTRACTION_PROVIDER
         value: textract
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: invoice-saas-redis
-          property: connectionString
-      - fromGroup: invoice-saas-backend-secrets
-
-  - type: worker
-    name: invoice-saas-worker
-    env: docker
-    dockerfilePath: ./backend/Dockerfile.worker
-    dockerContext: ./backend
-    envVars:
-      - key: APP_ENV
-        value: preprod
-      - key: STORAGE_BACKEND
-        value: supabase
-      - key: SUPABASE_STORAGE_ORIGINALS_BUCKET
-        value: invoice-originals
-      - key: SUPABASE_STORAGE_EXPORTS_BUCKET
-        value: invoice-exports
-      - key: SUPABASE_STORAGE_OCR_RAW_BUCKET
-        value: ocr-raw-results
-      - key: SUPABASE_JWT_AUDIENCE
-        value: authenticated
-      - key: EXTRACTION_PROVIDER
-        value: textract
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: invoice-saas-redis
-          property: connectionString
       - fromGroup: invoice-saas-backend-secrets
 
   - type: web
     name: invoice-saas-web
-    env: docker
+    runtime: docker
+    plan: free
     dockerfilePath: ./frontend/Dockerfile
     dockerContext: ./frontend
     healthCheckPath: /login
