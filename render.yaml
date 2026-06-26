@@ -1,8 +1,9 @@
 services:
 
-  - type: redis
+  - type: keyvalue
     name: invoice-saas-redis
     plan: free
+    ipAllowList: []
 
   - type: web
     name: invoice-saas-api
