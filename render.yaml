@@ -39,9 +39,8 @@ services:
   - type: worker
     name: invoice-saas-worker
     env: docker
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./backend/Dockerfile.worker
     dockerContext: ./backend
-    run: python -m app.workers.process_invoice --worker
     envVars:
       - key: APP_ENV
         value: preprod
