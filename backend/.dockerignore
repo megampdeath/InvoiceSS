@@ -1,0 +1,9 @@
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+invoice_saas.db
+storage/
+.env
+.env.*
+invoice_saas_backend.egg-info
