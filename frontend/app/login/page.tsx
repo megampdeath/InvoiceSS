@@ -3,7 +3,7 @@
 import { ArrowRight, Lock, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseConfigError } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,6 +20,10 @@ export default function LoginPage() {
 
   async function submit() {
     setError(null);
+    if (supabaseConfigError) {
+      setError(supabaseConfigError);
+      return;
+    }
     setIsSubmitting(true);
     const result =
       mode === "signin"
