@@ -2,21 +2,16 @@
 
 import { ArrowRight, Lock, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase, supabaseConfigError } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   async function submit() {
     setError(null);
@@ -25,29 +20,31 @@ export default function LoginPage() {
       return;
     }
     setIsSubmitting(true);
-    const result =
-      mode === "signin"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
-    setIsSubmitting(false);
+    try {
+      const result =
+        mode === "signin"
+          ? await supabase.auth.signInWithPassword({ email, password })
+          : await supabase.auth.signUp({ email, password });
 
-    if (result.error) {
-      setError(result.error.message);
-      return;
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+
+      const session = result.data.session ?? (await supabase.auth.getSession()).data.session;
+      if (!session?.access_token) {
+        setError("Check your email to confirm the account, then sign in.");
+        return;
+      }
+
+      localStorage.setItem("invoice_saas_token", session.access_token);
+      router.push("/app/invoices");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed. Check console for details.");
+      console.error("[login] submit error:", err);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const session = result.data.session ?? (await supabase.auth.getSession()).data.session;
-    if (!session?.access_token) {
-      setError("Check your email to confirm the account, then sign in.");
-      return;
-    }
-
-    localStorage.setItem("invoice_saas_token", session.access_token);
-    router.push("/app/invoices");
-  }
-
-  if (!isMounted) {
-    return <main className="flex min-h-screen items-center justify-center bg-panel px-4" />;
   }
 
   return (
