@@ -16,17 +16,22 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    let listener: { subscription: { unsubscribe: () => void } } | null = null;
 
     async function checkSession() {
-      const { data } = await supabase.auth.getSession();
-
-      if (cancelled) return;
-
-      if (data.session?.access_token) {
-        // Keep localStorage in sync so apiFetch can read it
-        localStorage.setItem("invoice_saas_token", data.session.access_token);
-        setStatus("authenticated");
-      } else {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (data.session?.access_token) {
+          localStorage.setItem("invoice_saas_token", data.session.access_token);
+          setStatus("authenticated");
+        } else {
+          localStorage.removeItem("invoice_saas_token");
+          router.replace("/login");
+        }
+      } catch (err) {
+        console.error("[AuthGuard] getSession failed:", err);
+        if (cancelled) return;
         localStorage.removeItem("invoice_saas_token");
         router.replace("/login");
       }
@@ -34,11 +39,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     void checkSession();
 
-    // Listen for auth state changes (e.g. token refresh, sign-out from another tab)
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (cancelled) return;
+    const timeout = setTimeout(() => {
+      if (cancelled) return;
+      console.warn("[AuthGuard] getSession timed out, redirecting to /login");
+      localStorage.removeItem("invoice_saas_token");
+      router.replace("/login");
+    }, 8000);
 
+    try {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (cancelled) return;
         if (event === "SIGNED_OUT" || !session) {
           localStorage.removeItem("invoice_saas_token");
           router.replace("/login");
@@ -46,12 +56,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           localStorage.setItem("invoice_saas_token", session.access_token);
           setStatus("authenticated");
         }
-      }
-    );
+      });
+      listener = data;
+    } catch (err) {
+      console.error("[AuthGuard] onAuthStateChange failed:", err);
+    }
 
     return () => {
       cancelled = true;
-      listener.subscription.unsubscribe();
+      clearTimeout(timeout);
+      listener?.subscription.unsubscribe();
     };
   }, [router]);
 
